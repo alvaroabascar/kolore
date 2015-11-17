@@ -28,6 +28,7 @@ admin_app = Blueprint('admin', __name__,
 BUCKET_NAME = get_default_gcs_bucket_name()
 IMG_SIZE = 1200
 IMAGES_PER_PAGE = 24
+ELEMENTS_PER_PAGE = 5  # IF you change this YOU HAVE TO change static/js/moreposts.js
 IMAGES_MIME = ['image/gif', 'image/jpeg', 'image/pjpeg', 'image/png', 'image/tiff']
 
 
@@ -83,10 +84,10 @@ def options():
 
 # Controllers /// Posts ///
 # ----------------------------------------------------------------
-
-@admin_app.route('/posts/', methods=['GET', 'POST'])
+@admin_app.route('/posts/', defaults={'page_num': 1}, methods=['GET', 'POST'])
+@admin_app.route('/posts/<int:page_num>',  methods=['GET', 'POST'])
 @admin_login_required
-def posts():
+def posts(page_num):
     """
     GET --> Main post list
     POST --> Delete post
@@ -97,27 +98,24 @@ def posts():
         ndb.Key('BlogPost', int(post['objects'][0])).delete()
         logging.info("Deleted post: {}".format(post['objects'][0]))
         return "true"
-
-    all_posts = BlogPost.query().order(-BlogPost.date).fetch(5)
-    plus = True
-    if len(all_posts) < 5:
-        plus = False
-    return render_template('admin-posts.html',
+    all_posts = BlogPost.query().order(-BlogPost.date).fetch(ELEMENTS_PER_PAGE*page_num)
+    plus = False if len(all_posts) < (ELEMENTS_PER_PAGE*page_num) else True
+    return render_template('blog/admin-posts.html',
                            posts=all_posts, plus=plus)
 
 
-@admin_app.route('/posts/<int:page_num>', methods=['GET', 'POST'])
+@admin_app.route('/posts/xhr/<int:page_num>', methods=['GET', 'POST'])
 @admin_login_required
 def more_posts(page_num):
     """
     :param page_num: The number of pages/posts
     :return: AJAX more posts
     """
-    offset = int(page_num * 5)
-    return render_template('admin-posts-more.html',
+    offset = int(page_num * ELEMENTS_PER_PAGE)
+    return render_template('blog/admin-posts-more.html',
                            posts=BlogPost.query()
                            .order(-BlogPost.date)
-                           .fetch(5, offset=offset))
+                           .fetch(ELEMENTS_PER_PAGE, offset=offset))
 
 
 @admin_app.route('/posts/add', methods=['GET', 'POST'])
@@ -127,6 +125,7 @@ def add_post():
     Create a new post
     """
     if request.method == 'POST':
+
         # Create New Blog Post Object
         blog_post = BlogPost(title=request.form['title'],
                              text=request.form['text'],
@@ -143,9 +142,8 @@ def add_post():
         # Redirect
         sleep(1)
         return redirect(url_for('admin.posts'))
-
     # GET
-    return render_template('admin-posts-add.html',
+    return render_template('blog/admin-posts-add.html',
                            categories=BlogCategory.query_all())
 
 
@@ -154,6 +152,7 @@ def add_post():
 def edit_post(post_id):
     """Edit posts"""
     if request.method == 'POST':
+
         # Retrieve the object
         blog_post = ndb.Key('BlogPost', int(post_id)).get()
 
@@ -166,12 +165,11 @@ def edit_post(post_id):
         # Save the new post
         blog_post.put()
         logging.info("Edit post : {}".format(post_id))
-
         # Redirect
         sleep(1)
-        return redirect(url_for('admin.posts'))
 
-    return render_template('admin-posts-edit.html',
+        return redirect(url_for('admin.posts'))
+    return render_template('blog/admin-posts-edit.html',
                            post=ndb.Key(BlogPost, int(post_id)).get(),
                            categories=BlogCategory.query_all())
 
@@ -188,7 +186,7 @@ def categories():
         BlogCategory.add_categories(post_categories)
         sleep(1)
 
-    return render_template('admin-categories.html',
+    return render_template('blog/categories/admin-categories.html',
                            categories=BlogCategory.query().fetch())
 
 
@@ -216,7 +214,7 @@ def edit_category(cat_id):
         else:
             pass
 
-    return render_template('admin-categories-edit.html',
+    return render_template('blog/categories/admin-categories-edit.html',
                            categories=BlogCategory.query().fetch(),
                            edit_cat=edit_cat.get())
 
@@ -276,7 +274,8 @@ def upload():
                     img = Image(image_data=blob_info.open().read())
 
                     if img.height > 1600 or img.width > 1600:
-                        img_gallery = get_serving_url(blob_key_object, size=1600)
+                        img_gallery = get_serving_url(blob_key_object,
+                                                      size=1600)
 
                         # Landscape
                         if img.height < img.width:
@@ -362,7 +361,7 @@ def image_manager(page):
     pagination = Pagination(page, IMAGES_PER_PAGE, images.count())
     query = images.fetch(IMAGES_PER_PAGE, offset=offset)
 
-    return render_template('admin-manager-images.html',
+    return render_template('image-manager/admin-manager-images.html',
                            keys=query,
                            pagination=pagination)
 
@@ -370,4 +369,4 @@ def image_manager(page):
 @admin_app.route('/images/add', methods=['GET', 'POST'])
 @admin_login_required
 def image_manager_add():
-    return render_template('admin-manager-images-add.html')
+    return render_template('image-manager/admin-manager-images-add.html')

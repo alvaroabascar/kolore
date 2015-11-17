@@ -247,5 +247,4 @@
             wrapper.insertAdjacentHTML('beforeEnd', '<div class="grid-item" style="background-image: url('+formInput.value+');"></div>');
         }
     }
-
 })();

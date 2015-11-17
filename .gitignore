@@ -12,3 +12,5 @@ app/admin/static/fonts
 app/front/static/dist
 .idea/*
 logo_kolore.afdesign
+open-sans.css
+kube.css

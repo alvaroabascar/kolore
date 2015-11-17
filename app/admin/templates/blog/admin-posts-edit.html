@@ -1,4 +1,4 @@
-{% extends 'admin-base.html'%}
+{% extends 'admin-base.html' %}
 {% block css %}
 <link rel="stylesheet" type="text/css" href="{{url_for('admin.static', filename='dist/redactor/css/redactor.css')}}">
 {% endblock %}
@@ -16,7 +16,7 @@
                     </label>
                     <label>
                         {{_("Content")}} <span class="forms-desc">{{_("Edit the main content")}}</span>
-                        {% include 'blocks/block-editor.html'%}
+                        {% include 'blocks/block-editor.html' %}
                     </label>
                 </div>
                 <div class="unit-30">
@@ -45,10 +45,14 @@
 <script type="text/javascript" src="{{url_for('admin.static', filename='dist/select2/select2.min.js')}}"></script>
 <script type="text/javascript">
 $(document).ready(function(){
+
+    // No XSS vulnerability --> http://stackoverflow.com/a/1395954/1473548
+    var decoded = $('<textarea/>').html("{{ post.text }}").val();
+
     $('#content').redactor({
         minHeight: 300,
         initCallback: function(){
-            this.code.set('{{ post.text | safe}}');
+            this.code.set(decoded);
             this.observe.load();
             if (this.utils.isOldIe()){
                 alert("{{_("You should update your Internet Explorer")}}");
